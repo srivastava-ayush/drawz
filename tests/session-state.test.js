@@ -24,3 +24,14 @@ test("a missing or full room rejects a join", () => {
   joinSession(sessions, "room-1", "socket-a")
   assert.equal(joinSession(sessions, "room-1", "socket-b").error, "Session is full")
 })
+
+test("rejoining the same room from one socket does not double count users", () => {
+  const sessions = new Map()
+  createSession(sessions, "room-1", 2)
+  joinSession(sessions, "room-1", "socket-a")
+  joinSession(sessions, "room-1", "socket-a")
+  assert.equal(sessions.get("room-1").users, 1)
+
+  // The duplicate join must not consume a seat, so socket B can still join.
+  assert.equal(joinSession(sessions, "room-1", "socket-b").session.users, 2)
+})
