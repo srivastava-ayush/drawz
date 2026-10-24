@@ -3,6 +3,7 @@ import http from "http"
 import { Server as SocketIOServer } from "socket.io"
 import cors from "cors"
 import os from "os"
+import { createSession, joinSession, leaveSession } from "./session-state.js"
 
 const app = express()
 const server = http.createServer(app)
@@ -36,7 +37,7 @@ app.post("/api/sessions/create", (req, res) => {
   if (!sessionId || !maxUsers) {
     return res.status(400).json({ error: "Missing required fields" })
   }
-  sessions.set(sessionId, { users: 0, maxUsers })
+  createSession(sessions, sessionId, maxUsers)
   res.json({ sessionId, maxUsers })
 })
 
@@ -50,18 +51,13 @@ io.on("connection", (socket) => {
 
     console.log("[v0] Join attempt - Room:", room, "Session exists:", !!session)
 
-    if (!session) {
-      socket.emit("error", "Session not found")
-      return
-    }
-
-    if (session.users >= session.maxUsers) {
-      socket.emit("error", "Session is full")
+    const result = joinSession(sessions, room, socket.id)
+    if (result.error) {
+      socket.emit("error", result.error)
       return
     }
 
     socket.join(room)
-    session.users++
     console.log("[v0] User joined room:", room, "Total users:", session.users)
 
     // Notify all users in the room (including the joining user)
@@ -89,19 +85,17 @@ io.on("connection", (socket) => {
     }
   })
 
-  socket.on("disconnect", () => {
+  socket.on("disconnecting", () => {
     const rooms = Object.keys(socket.rooms).filter((r) => r !== socket.id)
     rooms.forEach((room) => {
-      const session = sessions.get(room)
+      const session = leaveSession(sessions, room, socket.id)
       if (session) {
-        session.users = Math.max(0, session.users - 1)
         console.log("[v0] User disconnected from:", room, "Remaining users:", session.users)
         io.to(room).emit("room-info", {
           users: session.users,
           maxUsers: session.maxUsers,
         })
         if (session.users === 0) {
-          sessions.delete(room)
           console.log("[v0] Session deleted:", room)
         }
       }
