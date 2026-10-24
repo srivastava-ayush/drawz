@@ -1,5 +1,9 @@
 // Session transitions live outside the HTTP server so they can be tested offline.
 export function createSession(sessions, sessionId, maxUsers) {
+  if (!Number.isInteger(maxUsers) || maxUsers < 1) {
+    return { error: "Invalid maxUsers: must be a positive integer" }
+  }
+
   const session = { users: 0, maxUsers }
   sessions.set(sessionId, session)
   return session
