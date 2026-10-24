@@ -24,3 +24,14 @@ test("a missing or full room rejects a join", () => {
   joinSession(sessions, "room-1", "socket-a")
   assert.equal(joinSession(sessions, "room-1", "socket-b").error, "Session is full")
 })
+
+test("a duplicate session ID is rejected without resetting the active room", () => {
+  const sessions = new Map()
+  createSession(sessions, "room-1", 2)
+  joinSession(sessions, "room-1", "socket-a")
+
+  const duplicate = createSession(sessions, "room-1", 5)
+
+  assert.ok(duplicate && duplicate.error, "duplicate create should be rejected")
+  assert.deepEqual(sessions.get("room-1"), { users: 1, maxUsers: 2 })
+})

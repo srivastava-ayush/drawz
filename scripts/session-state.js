@@ -1,5 +1,9 @@
 // Session transitions live outside the HTTP server so they can be tested offline.
 export function createSession(sessions, sessionId, maxUsers) {
+  if (sessions.has(sessionId)) {
+    return { error: "Session already exists" }
+  }
+
   const session = { users: 0, maxUsers }
   sessions.set(sessionId, session)
   return session
